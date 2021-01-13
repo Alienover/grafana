@@ -16,7 +16,8 @@ export interface CalculateToRowOptions {
 export const calculateToRowTransformer: DataTransformerInfo<CalculateToRowOptions> = {
   id: DataTransformerID.calculateToRow,
   name: 'Calculate To Row',
-  description: 'Calculate each kkkjcolumn to a signle value using a function like max, min, mean or last',
+  description:
+    'Append a new row by calculating each column to a signle value using a function like max, min, mean or last',
   defaultOptions: {
     reducers: {},
   },
