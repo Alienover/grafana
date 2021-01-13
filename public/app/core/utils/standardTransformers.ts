@@ -12,9 +12,11 @@ import { mergeTransformerRegistryItem } from '../components/TransformersUI/Merge
 import { seriesToRowsTransformerRegistryItem } from '../components/TransformersUI/SeriesToRowsTransformerEditor';
 import { concatenateTransformRegistryItem } from '../components/TransformersUI/ConcatenateTransformerEditor';
 import { renameByRegexTransformRegistryItem } from '../components/TransformersUI/RenameByRegexTransformer';
+import { calculateToRowTransformRegistryItem } from '../components/TransformersUI/CalculateToRowTransformerEditor';
 
 export const getStandardTransformers = (): Array<TransformerRegistyItem<any>> => {
   return [
+    calculateToRowTransformRegistryItem,
     reduceTransformRegistryItem,
     filterFieldsByNameTransformRegistryItem,
     renameByRegexTransformRegistryItem,

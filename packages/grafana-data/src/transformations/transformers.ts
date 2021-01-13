@@ -16,8 +16,10 @@ import { groupByTransformer } from './transformers/groupBy';
 import { mergeTransformer } from './transformers/merge';
 import { renameByRegexTransformer } from './transformers/renameByRegex';
 import { filterByValueTransformer } from './transformers/filterByValue';
+import { calculateToRowTransformer } from './transformers/calculateToRow';
 
 export const standardTransformers = {
+  calculateToRowTransformer,
   noopTransformer,
   filterFieldsTransformer,
   filterFieldsByNameTransformer,
