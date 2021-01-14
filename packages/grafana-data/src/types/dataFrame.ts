@@ -79,6 +79,8 @@ export interface FieldConfig<TOptions extends object = any> {
   // The behavior when clicking on a result
   links?: DataLink[];
 
+  headerLinks?: DataLink[];
+
   // Alternative to empty string
   noValue?: string;
 
@@ -132,6 +134,8 @@ export interface Field<T = any, V = Vector<T>> {
    * Get value data links with variables interpolated
    */
   getLinks?: (config: ValueLinkConfig) => Array<LinkModel<Field>>;
+
+  getHeaderLinks?: (config: ValueLinkConfig) => Array<LinkModel<Field>>;
 }
 
 export interface FieldState {

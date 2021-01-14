@@ -40,6 +40,16 @@ export const dataLinksOverrideProcessor = (
   return value as DataLink[];
 };
 
+export interface HeaderLinksFieldConfigSettings {}
+
+export const headerLinksOverrideProcessor = (
+  value: any,
+  _context: FieldOverrideContext,
+  _settings?: DataLinksFieldConfigSettings
+) => {
+  return value as DataLink[];
+};
+
 export interface ValueMappingFieldConfigSettings {}
 
 export const valueMappingsOverrideProcessor = (

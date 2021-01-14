@@ -1,4 +1,5 @@
 import React, { FC, memo, useCallback, useMemo } from 'react';
+import cn from 'classnames';
 import { DataFrame, Field, getFieldDisplayName } from '@grafana/data';
 import {
   Cell,
@@ -232,6 +233,21 @@ function renderHeaderCell(column: any, tableStyles: TableStyles, field?: Field) 
 
   headerProps.style.position = 'absolute';
   headerProps.style.justifyContent = (column as any).justifyContent;
+
+  let link = null;
+  if (field && field?.getHeaderLinks) {
+    link = field.getHeaderLinks({})[0];
+  }
+
+  if (!!link) {
+    return (
+      <div className={cn(tableStyles.headerCell, tableStyles.cellLink)} {...headerProps}>
+        <a href={link.href} target={link.target} title={link.title}>
+          {column.render('Header')}
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className={tableStyles.headerCell} {...headerProps}>
