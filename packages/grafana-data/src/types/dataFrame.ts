@@ -7,6 +7,15 @@ import { Vector } from './vector';
 import { FieldColor } from './fieldColor';
 import { ScopedVars } from './ScopedVars';
 
+export interface StatValues {
+  id: string;
+  name: string;
+  index: {
+    row: number;
+    col: number;
+  };
+}
+
 export enum FieldType {
   time = 'time', // or date
   number = 'number',
@@ -86,6 +95,8 @@ export interface FieldConfig<TOptions extends object = any> {
 
   // Panel Specific Values
   custom?: TOptions;
+
+  statValues?: StatValues[];
 }
 
 export interface ValueLinkConfig {
