@@ -14,6 +14,7 @@ export interface StatValues {
     row: number;
     col: number;
   };
+  [key: string]: any;
 }
 
 export enum FieldType {

@@ -9,9 +9,20 @@ import { getFieldDisplayName } from '../../field/fieldState';
 import { DataFrame, Field } from '../../types/dataFrame';
 import { ArrayVector } from '../../vector';
 
+export enum RowPlacement {
+  top = 'top',
+  bottom = 'bottom',
+}
+
 export interface CalculateToRowOptions {
   reducers: { [key: string]: ReducerID[] };
+  placement: RowPlacement;
 }
+
+export const rowPlacements = [
+  { label: 'Top', value: RowPlacement.top },
+  { label: 'Bottom', value: RowPlacement.bottom },
+];
 
 export const calculateToRowTransformer: DataTransformerInfo<CalculateToRowOptions> = {
   id: DataTransformerID.calculateToRow,
@@ -20,6 +31,7 @@ export const calculateToRowTransformer: DataTransformerInfo<CalculateToRowOption
     'Append a new row by calculating each column to a signle value using a function like max, min, mean or last',
   defaultOptions: {
     reducers: {},
+    placement: RowPlacement.bottom,
   },
   operator: options => source =>
     source.pipe(
@@ -28,13 +40,22 @@ export const calculateToRowTransformer: DataTransformerInfo<CalculateToRowOption
           return data;
         }
 
-        return calculateToRow(data, options.reducers);
+        return calculateToRow(data, options);
       })
     ),
 };
 
-export function calculateToRow(data: DataFrame[], reducerId: { [key: string]: ReducerID[] }): DataFrame[] {
+export function calculateToRow(data: DataFrame[], options: CalculateToRowOptions): DataFrame[] {
+  const reducerId = options.reducers;
+  const placement = options.placement;
   const processed: DataFrame[] = [];
+
+  const isPlaceAtTop = placement === RowPlacement.top;
+  const prevStatRowTopIndex = data
+    .flatMap(series => series.fields.flatMap(field => field.config.statValues || []))
+    .filter(stateValue => stateValue.placement === RowPlacement.top)
+    .reduce((topIndex, curr) => Math.max(curr.index.row, topIndex), -1);
+
   for (const series of data) {
     const fields: Field[] = [];
     for (const [col, field] of series.fields.entries()) {
@@ -61,36 +82,52 @@ export function calculateToRow(data: DataFrame[], reducerId: { [key: string]: Re
         reducers,
       });
 
+      let value;
+      let nextRowIndex = isPlaceAtTop ? prevStatRowTopIndex + 1 : field.values.length;
+      let nextFieldValues = [...fieldValueArray];
+      let nextStatValues = [...statValues];
+
       if (reducers.length > 0) {
-        for (const reducer of reducers) {
-          const value = results[reducer];
-          const statValue = {
+        // Only the first stat takes effect
+        const reducer = reducers[0];
+        value = results[reducer];
+
+        const prevRowIndex = statValues.reduce((prev, curr) => {
+          if (curr.placement === placement) {
+            return curr.index.row;
+          }
+          return prev;
+        }, undefined as number | void);
+
+        nextRowIndex = prevRowIndex ? prevRowIndex + 1 : nextRowIndex;
+
+        nextStatValues = [
+          ...statValues,
+          {
+            placement,
             id: reducer,
             name: fieldReducers.get(reducer).name,
             index: {
               col,
-              row: field.values.length,
+              row: nextRowIndex,
             },
-          };
-          const copy = {
-            ...field,
-            config: {
-              ...field.config,
-              statValues: [...statValues, statValue],
-            },
-            values: new ArrayVector([...field.values.toArray(), value]),
-          };
-          copy.state = undefined;
-          fields.push(copy);
-        }
-      } else {
-        const copy = {
-          ...field,
-          values: new ArrayVector([...field.values.toArray(), undefined]),
-        };
-        copy.state = undefined;
-        fields.push(copy);
+          },
+        ];
       }
+
+      nextFieldValues.splice(nextRowIndex, 0, value);
+      const copy = {
+        ...field,
+        config: {
+          ...field.config,
+          statValues: [...nextStatValues],
+        },
+        values: new ArrayVector(nextFieldValues),
+      };
+
+      copy.state = undefined;
+
+      fields.push(copy);
     }
 
     if (fields.length) {

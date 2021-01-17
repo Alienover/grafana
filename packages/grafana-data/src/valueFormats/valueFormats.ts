@@ -27,7 +27,7 @@ export function appendCalculatedMethodToValue(
   if (statValue) {
     return {
       ...val,
-      suffix: `${val.suffix ?? ''} (${statValue.name})`,
+      suffix: [val.suffix ?? '', !!val.text ? `(${statValue.name})` : ''].join(' '),
     };
   }
   return val;
