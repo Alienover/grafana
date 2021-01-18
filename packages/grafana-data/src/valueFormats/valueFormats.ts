@@ -3,6 +3,7 @@ import { DecimalCount } from '../types/displayValue';
 import { toDateTimeValueFormatter } from './dateTimeFormatters';
 import { getOffsetFromSIPrefix, SIPrefix, currency } from './symbolFormatters';
 import { TimeZone, Field, DisplayValue } from '../types';
+import { fieldReducers } from '../transformations/fieldReducer';
 
 export interface FormattedValue {
   text: string;
@@ -25,9 +26,10 @@ export function appendCalculatedMethodToValue(
   const statValue = statValues.find(value => value.index.row === rowIndex);
 
   if (statValue) {
+    const name = fieldReducers.get(statValue.id).name;
     return {
       ...val,
-      suffix: [val.suffix ?? '', !!val.text ? `(${statValue.name})` : ''].join(' '),
+      suffix: [val.suffix ?? '', !!val.text ? `(${name})` : ''].join(' '),
     };
   }
   return val;

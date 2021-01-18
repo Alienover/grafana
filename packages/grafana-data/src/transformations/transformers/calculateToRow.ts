@@ -105,8 +105,7 @@ export function calculateToRow(data: DataFrame[], options: CalculateToRowOptions
           ...statValues,
           {
             placement,
-            id: reducer,
-            name: fieldReducers.get(reducer).name,
+            id: reducer as ReducerID,
             index: {
               col,
               row: nextRowIndex,

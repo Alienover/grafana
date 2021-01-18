@@ -6,10 +6,10 @@ import { DataLink, LinkModel } from './dataLink';
 import { Vector } from './vector';
 import { FieldColor } from './fieldColor';
 import { ScopedVars } from './ScopedVars';
+import { ReducerID } from '../transformations';
 
 export interface StatValues {
-  id: string;
-  name: string;
+  id: ReducerID;
   index: {
     row: number;
     col: number;
