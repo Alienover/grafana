@@ -14,14 +14,25 @@ export enum RowPlacement {
   bottom = 'bottom',
 }
 
+export enum CalculateMode {
+  separated = 'separated',
+  row = 'row',
+}
+
 export interface CalculateToRowOptions {
   reducers: { [key: string]: ReducerID[] };
   placement: RowPlacement;
+  mode: CalculateMode;
 }
 
 export const rowPlacements = [
   { label: 'Top', value: RowPlacement.top },
   { label: 'Bottom', value: RowPlacement.bottom },
+];
+
+export const calculateModes = [
+  { label: 'Separated calculate', value: CalculateMode.separated },
+  { label: 'Calculate row', value: CalculateMode.row },
 ];
 
 export const calculateToRowTransformer: DataTransformerInfo<CalculateToRowOptions> = {

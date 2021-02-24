@@ -1,6 +1,9 @@
 import React, { useMemo, useCallback } from 'react';
+import mapValues from 'lodash/mapValues';
 import toPairs from 'lodash/toPairs';
-import isEmpty from 'lodash/isEmpty';
+import values from 'lodash/values';
+import head from 'lodash/head';
+import keys from 'lodash/keys';
 
 import {
   ReducerID,
@@ -13,15 +16,86 @@ import {
   TransformerRegistyItem,
   DataFrame,
 } from '@grafana/data';
-import { StatsPicker, Button, Select } from '@grafana/ui';
+import { StatsPicker, FilterPill, HorizontalGroup, Button, Select } from '@grafana/ui';
 import {
   CalculateToRowOptions,
   RowPlacement,
   rowPlacements,
+  CalculateMode,
+  calculateModes,
 } from '@grafana/data/src/transformations/transformers/calculateToRow';
 import { getAllFieldNamesFromDataFrames } from './OrganizeFieldsTransformerEditor';
 
-export const CalculateToRowTransformerEditor: React.FC<TransformerUIProps<CalculateToRowOptions>> = ({
+const DEFAULT_REDUCERS = [ReducerID.sum];
+
+const BasicConfigRow: React.FC<TransformerUIProps<CalculateToRowOptions>> = ({ input, options, onChange }) => {
+  const placement = options.placement || RowPlacement.bottom;
+  const mode = options.mode || CalculateMode.separated;
+
+  const fieldNames = useMemo(() => getAllFieldNamesFromDataFrames(input), [input]);
+  const fieldTypes = useMemo(() => getFieldTypesFromDataFrame(input), [input]);
+  const fieldNameOptions = fieldNames.map((name: string) => ({ label: name, value: name, type: fieldTypes[name] }));
+
+  const onFieldChange = useCallback(
+    (key: string, selectable?: SelectableValue<RowPlacement | CalculateMode>) => {
+      if (!selectable?.value) {
+        return;
+      }
+      let reducers = options.reducers;
+
+      if (key === 'mode') {
+        if (selectable.value === CalculateMode.separated) {
+          reducers = {};
+        } else {
+          reducers = fieldNameOptions
+            .filter(option => option.type !== FieldType.time)
+            .map(option => [option.value, DEFAULT_REDUCERS] as [string, ReducerID[]])
+            .reduce(
+              (prev, curr) => ({
+                ...prev,
+                [curr[0]]: curr[1],
+              }),
+              {}
+            );
+        }
+      }
+
+      onChange({
+        ...options,
+        reducers,
+        [key]: selectable.value,
+      });
+    },
+    [options, onChange, input, fieldNameOptions]
+  );
+
+  return (
+    <div className="gf-form-inline">
+      <div className="gf-form gf-form-spacing">
+        <div className="gf-form-label width-7">Mode</div>
+        <Select
+          className="width-15"
+          placeholder="Default to calculate separately"
+          options={calculateModes}
+          value={mode}
+          onChange={selected => onFieldChange('mode', selected)}
+        />
+      </div>
+      <div className="gf-form gf-form-spacing">
+        <div className="gf-form-label width-7">Place at</div>
+        <Select
+          className="width-15"
+          placeholder="(Default to bottom)"
+          options={rowPlacements}
+          value={placement}
+          onChange={selected => onFieldChange('placement', selected)}
+        />
+      </div>
+    </div>
+  );
+};
+
+const SeparatedCalculationEditor: React.FC<TransformerUIProps<CalculateToRowOptions>> = ({
   input,
   options,
   onChange,
@@ -30,7 +104,6 @@ export const CalculateToRowTransformerEditor: React.FC<TransformerUIProps<Calcul
   const fieldTypes = useMemo(() => getFieldTypesFromDataFrame(input), [input]);
   const fieldNameOptions = fieldNames.map((name: string) => ({ label: name, value: name, type: fieldTypes[name] }));
 
-  const placement = options.placement || RowPlacement.bottom;
   const reducers = options.reducers || {};
   const unselected = fieldNames.filter(name => !(name in reducers));
 
@@ -72,20 +145,6 @@ export const CalculateToRowTransformerEditor: React.FC<TransformerUIProps<Calcul
     [options, onChange, input, reducers]
   );
 
-  const onChangePlacement = useCallback(
-    (selectable?: SelectableValue<RowPlacement>) => {
-      if (!selectable?.value) {
-        return;
-      }
-
-      onChange({
-        ...options,
-        placement: selectable.value,
-      });
-    },
-    [options, onChange, input, placement]
-  );
-
   const onDelete = useCallback(
     field => {
       const { [field]: _, ...next } = reducers;
@@ -93,7 +152,6 @@ export const CalculateToRowTransformerEditor: React.FC<TransformerUIProps<Calcul
       onChange({
         ...options,
         reducers: { ...next },
-        placement: isEmpty(next) ? RowPlacement.bottom : placement,
       });
     },
     [options, onChange, reducers]
@@ -101,16 +159,6 @@ export const CalculateToRowTransformerEditor: React.FC<TransformerUIProps<Calcul
 
   return (
     <>
-      <div className="gf-form gf-form-spacing">
-        <div className="gf-form-label width-7">Place at</div>
-        <Select
-          className="width-15"
-          placeholder="(Default to bottom)"
-          options={rowPlacements}
-          value={placement}
-          onChange={onChangePlacement}
-        />
-      </div>
       {toPairs(reducers).map(([field, stats], index) => (
         <div key={index} className="gf-form-inline">
           <div className="gf-form gf-form-spacing">
@@ -152,6 +200,117 @@ export const CalculateToRowTransformerEditor: React.FC<TransformerUIProps<Calcul
           </Button>
         </div>
       )}
+    </>
+  );
+};
+
+type FieldOption = {
+  label: string;
+  value: string;
+  type: FieldType;
+};
+const RowCalculationEditor: React.FC<TransformerUIProps<CalculateToRowOptions>> = ({ input, options, onChange }) => {
+  const fieldNames = useMemo(() => getAllFieldNamesFromDataFrames(input), [input]);
+  const fieldTypes = useMemo(() => getFieldTypesFromDataFrame(input), [input]);
+  const fieldNameOptions: FieldOption[] = fieldNames.map((name: string) => ({
+    label: name,
+    value: name,
+    type: fieldTypes[name],
+  }));
+
+  const selected = new Set(keys(options.reducers));
+  const selectedReducers = head(values(options.reducers)) || DEFAULT_REDUCERS;
+
+  const onFieldToggle = useCallback(
+    (field: FieldOption) => {
+      let reducers = {};
+      if (selected.size === 1 && selected.has(field.value)) {
+        reducers = fieldNameOptions
+          .filter(option => option.type !== FieldType.time)
+          .map(option => [option.value, selectedReducers] as [string, ReducerID[]])
+          .reduce(
+            (prev, curr) => ({
+              ...prev,
+              [curr[0]]: curr[1],
+            }),
+            {}
+          );
+      } else {
+        const { [field.value]: _, ...rest } = options.reducers;
+
+        if (!selected.has(field.value)) {
+          reducers = { [field.value]: selectedReducers };
+        }
+
+        reducers = {
+          ...reducers,
+          ...rest,
+        };
+      }
+
+      onChange({
+        ...options,
+        reducers,
+      });
+    },
+    [options, onChange, selected]
+  );
+
+  const onStatsChange = useCallback(
+    (reducers: ReducerID[]) => {
+      onChange({
+        ...options,
+        reducers: mapValues(options.reducers, () => reducers),
+      });
+    },
+    [options, onChange]
+  );
+
+  return (
+    <>
+      <div className="gf-form-inline">
+        <div className="gf-form gf-form--grow">
+          <div className="gf-form-label width-7">Field name</div>
+          <HorizontalGroup spacing="xs" align="flex-start" wrap>
+            {fieldNameOptions.map((field, i) => {
+              return (
+                <FilterPill
+                  key={`${field.value}/${i}`}
+                  onClick={() => {
+                    onFieldToggle(field);
+                  }}
+                  label={field.label}
+                  selected={selected.has(field.value)}
+                />
+              );
+            })}
+          </HorizontalGroup>
+        </div>
+      </div>
+      <div className="gf-form-inline">
+        <div className="gf-form">
+          <div className="gf-form-label width-7">Stat</div>
+          <StatsPicker className="width-15" stats={selectedReducers} onChange={onStatsChange} />
+        </div>
+      </div>
+    </>
+  );
+};
+
+const registery = {
+  [CalculateMode.separated]: SeparatedCalculationEditor,
+  [CalculateMode.row]: RowCalculationEditor,
+};
+
+export const CalculateToRowTransformerEditor: React.FC<TransformerUIProps<CalculateToRowOptions>> = props => {
+  const { options } = props;
+  const mode = options.mode || CalculateMode.separated;
+
+  const Editor = registery[mode];
+  return (
+    <>
+      <BasicConfigRow {...props} />
+      <Editor {...props} />
     </>
   );
 };
